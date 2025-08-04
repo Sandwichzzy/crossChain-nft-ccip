@@ -162,7 +162,7 @@ contract NFTPoolLockAndRelease is CCIPReceiver, OwnerIsCreator {
         return
             Client.EVM2AnyMessage({
                 receiver: abi.encode(_receiver), // ABI-encoded receiver address
-                data: _data, // ABI-encoded string
+                data: _data, // The data to be sent
                 tokenAmounts: new Client.EVMTokenAmount[](0), // Empty array as no tokens are transferred
                 extraArgs: Client._argsToBytes(
                     // Additional arguments, setting gas limit and allowing out-of-order execution.
