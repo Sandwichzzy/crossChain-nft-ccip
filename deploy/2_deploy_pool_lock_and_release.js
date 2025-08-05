@@ -1,3 +1,9 @@
+const { network } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../helper-hardhat-config");
+
 module.exports = async (hre) => {
   const { getNamedAccounts, deployments } = hre;
   const { firstAccount } = await getNamedAccounts();
@@ -6,19 +12,31 @@ module.exports = async (hre) => {
   log("Deploying pool lock and release contract...");
   //address _router, address _token, address nftaddr
 
-  const ccipSimulatorDeployment = await deployments.get("CCIPLocalSimulator");
-  const ccipSimulator = await ethers.getContractAt(
-    "CCIPLocalSimulator",
-    ccipSimulatorDeployment.address
-  );
+  let sourceChainRouter;
+  let linkTokenAddr;
+  if (developmentChains.includes(network.name)) {
+    const ccipSimulatorDeployment = await deployments.get("CCIPLocalSimulator");
+    const ccipSimulator = await ethers.getContractAt(
+      "CCIPLocalSimulator",
+      ccipSimulatorDeployment.address
+    );
+    const ccipConfig = await ccipSimulator.configuration();
+    //  * @notice Returns configuration details for pre-deployed contracts and services needed for local CCIP simulations.
+    //  *
+    //  * @return chainSelector_ - The unique CCIP Chain Selector.
+    //  * @return sourceRouter_  - The source chain Router contract.
+    //  * @return destinationRouter_ - The destination chain Router contract.
+    //  * @return linkToken_ - The LINK token.
 
-  const ccipConfig = await ccipSimulator.configuration();
-  const sourceChainRouter = ccipConfig.sourceRouter_;
-  const linkTokenAddr = ccipConfig.linkToken_;
+    sourceChainRouter = ccipConfig.sourceRouter_;
+    linkTokenAddr = ccipConfig.linkToken_;
+  } else {
+    sourceChainRouter = networkConfig[network.config.chainId].router;
+    linkTokenAddr = networkConfig[network.config.chainId].linkToken;
+  }
 
   const nftDeployment = await deployments.get("MyToken");
   const nftAddr = nftDeployment.address;
-
   await deploy("NFTPoolLockAndRelease", {
     contract: "NFTPoolLockAndRelease",
     from: firstAccount,

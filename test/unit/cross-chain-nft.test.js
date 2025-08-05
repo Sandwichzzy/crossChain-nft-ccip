@@ -1,3 +1,6 @@
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+
 //prepare variables:contract ,account
 
 let firstAccount;
@@ -6,8 +9,9 @@ let nft;
 let nftPoolLockAndRelease;
 let wnft;
 let nftPoolBurnAndMint;
+let chainSelector;
 
-beforeEach(async function (hre) {
+before(async function (hre) {
   const { getNamedAccounts, deployments } = hre;
   //set up accounts
   firstAccount = (await getNamedAccounts()).firstAccount;
@@ -32,21 +36,63 @@ beforeEach(async function (hre) {
     "NFTPoolBurnAndMint",
     firstAccount
   );
+  const config = await ccipSimulator.configuration();
+  chainSelector = config.chainSelector_;
 });
 
 //source chain ->dest chain
 describe("source chain ->dest chain tests", async function () {
   it("test if user can mint a nft from nft contract successfully", async function () {
-    await nft.safeMint(firstAccount, 1);
+    await nft.safeMint(firstAccount);
+    const owner = await nft.ownerOf(0);
+    expect(owner).to.equal(firstAccount);
+  });
+
+  it("test if user can lock a nft in the pool on source chain and send ccip message to dest chain", async function () {
+    await nft.approve(nftPoolLockAndRelease.target, 0);
+    //在 ethers.js v6 中，合约实例的地址属性发生了变化：
+    //contract.address (v5 及之前版本)
+    //contract.target (v6 版本)
+    await ccipSimulator.requestLinkFromFaucet(
+      nftPoolLockAndRelease,
+      ethers.parseEther("10")
+    );
+    await nftPoolLockAndRelease.lockAndSendNFT(
+      0,
+      firstAccount,
+      chainSelector,
+      nftPoolBurnAndMint.target
+    );
+    const owner = await nft.ownerOf(0);
+    expect(owner).to.equal(nftPoolLockAndRelease.target);
+  });
+
+  it("test if user can get a wrapped nft in dest chain", async function () {
+    const owner = await wnft.ownerOf(0);
+    expect(owner).to.equal(firstAccount);
   });
 });
-//test if user can mint a nft from nft contract successfully
-
-//test if user can lock a nft in the pool on source chain and send ccip message to dest chain
-
-//test if user can get a wrapped nft in dest chain
 
 //dest chain ->source chain
-//test if user can burn a wrapped wnft on dest chain and send ccip message to soucre chain
+describe("dest chain ->source chain tests", async function () {
+  it("test if user can burn a wrapped wnft on dest chain and send ccip message to soucre chain", async function () {
+    await wnft.approve(nftPoolBurnAndMint.target, 0);
+    await ccipSimulator.requestLinkFromFaucet(
+      nftPoolBurnAndMint,
+      ethers.parseEther("10")
+    );
+    await nftPoolBurnAndMint.burnAndSendNFT(
+      0,
+      firstAccount,
+      chainSelector,
+      nftPoolLockAndRelease.target
+    );
+    const totalSupply = await wnft.totalSupply();
+    expect(totalSupply).to.equal(0);
+  });
 
-//test if user have the nft unlocked on source chain
+  it("test if user have the unlocked nft on source chain", async function () {
+    const owner = await nft.ownerOf(0);
+    expect(owner).to.equal(firstAccount);
+  });
+});
