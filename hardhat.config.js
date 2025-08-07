@@ -1,6 +1,7 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("hardhat-deploy");
 require("@chainlink/env-enc").config();
+require("./task");
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const PRIVATE_KEY_2 = process.env.PRIVATE_KEY_2;
@@ -21,12 +22,18 @@ module.exports = {
       accounts: [PRIVATE_KEY, PRIVATE_KEY_2, PRIVATE_KEY_3],
       chainId: 11155111,
       blockConfirmations: 6,
+      companionNetworks: {
+        destChain: "amoy",
+      },
     },
     amoy: {
       url: AMOY_RPC_URL,
       accounts: [PRIVATE_KEY, PRIVATE_KEY_2, PRIVATE_KEY_3],
       chainId: 80002,
       blockConfirmations: 6,
+      companionNetworks: {
+        destChain: "sepolia",
+      },
     },
   },
   namedAccounts: {
